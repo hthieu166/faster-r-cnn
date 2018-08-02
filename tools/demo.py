@@ -45,8 +45,8 @@ OUTPUT_DIR = 'demo_result/'
 #            'motorbike', 'person', 'pottedplant',
 #            'sheep', 'sofa', 'train', 'tvmonitor')
 
-CLASSES = ('__background__',
-        'polyp')
+CLASSES = ('__background__',  # always index 0
+        'polyp','dyed-lifted-polyp','dyed-resection-margin')
 
 NETS = {'vgg16': ('vgg16_faster_rcnn_iter_70000.ckpt',),'res101': ('res101_faster_rcnn_iter_5000.ckpt',)}
 # NETS = {'vgg16': ('vgg16_faster_rcnn_iter_70000.ckpt',),'res101': ('res101_faster_rcnn_iter_110000.ckpt','res101_faster_rcnn_iter_5000,ckpt')}
@@ -157,7 +157,7 @@ if __name__ == '__main__':
         net = resnetv1(num_layers=101)
     else:
         raise NotImplementedError
-    net.create_architecture("TEST", 2,
+    net.create_architecture("TEST", 4,
                           tag='default', anchor_scales=[4, 8, 16, 32])
     saver = tf.train.Saver()
     saver.restore(sess, tfmodel)

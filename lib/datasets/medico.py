@@ -34,7 +34,7 @@ class medico(imdb):
     self._devkit_path = self._get_default_path()
     self._data_path = os.path.join(self._devkit_path, 'medico_' + self._year)
     self._classes = ('__background__',  # always index 0
-                     'polyp')
+                     'polyp','dyed-lifted-polyp','dyed-resection-margin')
     self._class_to_ind = dict(list(zip(self.classes, list(range(self.num_classes)))))
     self._image_ext = '.jpg'
     self._image_index = self._load_image_set_index()
@@ -160,7 +160,8 @@ class medico(imdb):
         y1 = float(info[1])
         x2 = float(info[2])
         y2 = float(info[3])
-        cls = self._class_to_ind['polyp']
+        lb = info[4]
+        cls = self._class_to_ind[lb]
         boxes[i, :] = [x1, y1, x2, y2]
         gt_classes[i] = cls 
         overlaps[i, cls] = 1.0
