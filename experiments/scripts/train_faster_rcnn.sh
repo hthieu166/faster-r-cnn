@@ -39,6 +39,14 @@ case ${DATASET} in
     ANCHORS="[4,8,16,32]"
     RATIOS="[0.5,1,2]"
     ;;
+  medico)
+    TRAIN_IMDB="medico_2018_trainval"
+    TEST_IMDB="medico_2018_test"
+    STEPSIZE="[20000]"
+    ITERS=80000
+    ANCHORS="[4,8,16,32]"
+    RATIOS="[0.5,1,2]"
+    ;;
   *)
     echo "No dataset given"
     exit

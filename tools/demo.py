@@ -22,7 +22,10 @@ from model.nms_wrapper import nms
 
 from utils.timer import Timer
 import tensorflow as tf
-import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt
+
 import numpy as np
 import os, cv2
 import argparse
@@ -98,6 +101,7 @@ def demo(sess, net, image_name):
         keep = nms(dets, NMS_THRESH)
         dets = dets[keep, :]
         vis_detections(im, cls, dets, thresh=CONF_THRESH)
+        plt.savefig('result_'+cls+'_'+im_name)
 
 def parse_args():
     """Parse input arguments."""
@@ -151,5 +155,5 @@ if __name__ == '__main__':
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         print('Demo for data/demo/{}'.format(im_name))
         demo(sess, net, im_name)
+    # plt.show()
 
-    plt.show()
