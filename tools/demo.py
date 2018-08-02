@@ -33,15 +33,24 @@ import argparse
 from nets.vgg16 import vgg16
 from nets.resnet_v1 import resnetv1
 
-CLASSES = ('__background__',
-           'aeroplane', 'bicycle', 'bird', 'boat',
-           'bottle', 'bus', 'car', 'cat', 'chair',
-           'cow', 'diningtable', 'dog', 'horse',
-           'motorbike', 'person', 'pottedplant',
-           'sheep', 'sofa', 'train', 'tvmonitor')
 
-NETS = {'vgg16': ('vgg16_faster_rcnn_iter_70000.ckpt',),'res101': ('res101_faster_rcnn_iter_110000.ckpt',)}
-DATASETS= {'pascal_voc': ('voc_2007_trainval',),'pascal_voc_0712': ('voc_2007_trainval+voc_2012_trainval',)}
+import glob
+import os
+
+OUTPUT_DIR = 'demo_result/'
+# CLASSES = ('__background__',
+#            'aeroplane', 'bicycle', 'bird', 'boat',
+#            'bottle', 'bus', 'car', 'cat', 'chair',
+#            'cow', 'diningtable', 'dog', 'horse',
+#            'motorbike', 'person', 'pottedplant',
+#            'sheep', 'sofa', 'train', 'tvmonitor')
+
+CLASSES = ('__background__',
+        'polyp')
+
+NETS = {'vgg16': ('vgg16_faster_rcnn_iter_70000.ckpt',),'res101': ('res101_faster_rcnn_iter_5000.ckpt',)}
+# NETS = {'vgg16': ('vgg16_faster_rcnn_iter_70000.ckpt',),'res101': ('res101_faster_rcnn_iter_110000.ckpt','res101_faster_rcnn_iter_5000,ckpt')}
+DATASETS= {'pascal_voc': ('voc_2007_trainval',),'pascal_voc_0712': ('voc_2007_trainval+voc_2012_trainval',),'medico_2018':('medico_2018_trainval',)}
 
 def vis_detections(im, class_name, dets, thresh=0.5):
     """Draw detected bounding boxes."""
@@ -79,7 +88,8 @@ def demo(sess, net, image_name):
     """Detect object classes in an image using pre-computed object proposals."""
 
     # Load the demo image
-    im_file = os.path.join(cfg.DATA_DIR, 'demo', image_name)
+    im_file = image_name
+    # im_file = os.path.join(cfg.DATA_DIR, 'demo', image_name)
     im = cv2.imread(im_file)
 
     # Detect all object classes and regress object bounds
@@ -92,7 +102,9 @@ def demo(sess, net, image_name):
     # Visualize detections for each class
     CONF_THRESH = 0.8
     NMS_THRESH = 0.3
+    print(CLASSES)
     for cls_ind, cls in enumerate(CLASSES[1:]):
+       
         cls_ind += 1 # because we skipped background
         cls_boxes = boxes[:, 4*cls_ind:4*(cls_ind + 1)]
         cls_scores = scores[:, cls_ind]
@@ -101,7 +113,10 @@ def demo(sess, net, image_name):
         keep = nms(dets, NMS_THRESH)
         dets = dets[keep, :]
         vis_detections(im, cls, dets, thresh=CONF_THRESH)
-        plt.savefig('result_'+cls+'_'+im_name)
+    
+    out_file = OUTPUT_DIR+'result_'+cls+'_'+os.path.basename(im_name)   
+    print('Save result to: '+out_file)
+    plt.savefig(out_file)
 
 def parse_args():
     """Parse input arguments."""
@@ -109,7 +124,7 @@ def parse_args():
     parser.add_argument('--net', dest='demo_net', help='Network to use [vgg16 res101]',
                         choices=NETS.keys(), default='res101')
     parser.add_argument('--dataset', dest='dataset', help='Trained dataset [pascal_voc pascal_voc_0712]',
-                        choices=DATASETS.keys(), default='pascal_voc_0712')
+                        choices=DATASETS.keys(), default='medico_2018')
     args = parser.parse_args()
 
     return args
@@ -142,15 +157,18 @@ if __name__ == '__main__':
         net = resnetv1(num_layers=101)
     else:
         raise NotImplementedError
-    net.create_architecture("TEST", 21,
-                          tag='default', anchor_scales=[8, 16, 32])
+    net.create_architecture("TEST", 2,
+                          tag='default', anchor_scales=[4, 8, 16, 32])
     saver = tf.train.Saver()
     saver.restore(sess, tfmodel)
 
     print('Loaded network {:s}'.format(tfmodel))
-
-    im_names = ['000456.jpg', '000542.jpg', '001150.jpg',
-                '001763.jpg', '004545.jpg']
+    
+    if (not os.path.exists(OUTPUT_DIR)):
+        os.makedirs(OUTPUT_DIR)
+    print(cfg.DATA_DIR+'/demo/medico_demo/*.jpg')
+    im_names = glob.glob(cfg.DATA_DIR+'/demo/medico_demo/*.jpg')
+    print('Total demo imgs = '+str(len(im_names)))
     for im_name in im_names:
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         print('Demo for data/demo/{}'.format(im_name))

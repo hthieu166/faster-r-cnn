@@ -65,7 +65,7 @@ class medico(imdb):
     """
     Construct an image path from the image's "index" identifier.
     """
-    image_path = os.path.join(self._data_path, 'JPEGImages',
+    image_path = os.path.join(self._data_path, 'images',
                               index + self._image_ext)
     assert os.path.exists(image_path), \
       'Path does not exist: {}'.format(image_path)
@@ -75,8 +75,11 @@ class medico(imdb):
     """
     Load the indexes listed in this dataset's image set file.
     """
-    image_set_file = os.path.join(self._data_path, 'ImageSets', 'Main',
+    #<<<<<<<<<<< edit here
+    image_set_file = os.path.join(self._data_path, 'Main',
                                   self._image_set + '.txt')
+    # image_set_file = os.path.join(self._data_path, 'ImageSets', 'Main',
+    #                               self._image_set + '.txt')
     assert os.path.exists(image_set_file), \
       'Path does not exist: {}'.format(image_set_file)
     with open(image_set_file) as f:
@@ -85,9 +88,9 @@ class medico(imdb):
 
   def _get_default_path(self):
     """
-    Return the default path where PASCAL VOC is expected to be installed.
+    Return the default path where MEDICO is expected to be installed.
     """
-    return os.path.join(cfg.DATA_DIR, 'VOCdevkit' + self._year)
+    return os.path.join(cfg.DATA_DIR, 'MedicoDataset')
 
   def gt_roidb(self):
     """
@@ -157,9 +160,9 @@ class medico(imdb):
         y1 = float(info[1])
         x2 = float(info[2])
         y2 = float(info[3])
-        cls = 'polyp'
+        cls = self._class_to_ind['polyp']
         boxes[i, :] = [x1, y1, x2, y2]
-        gt_classes[i] = cls
+        gt_classes[i] = cls 
         overlaps[i, cls] = 1.0
         seg_areas[i] = (x2 - x1 + 1) * (y2 - y1 + 1)
 
@@ -182,7 +185,7 @@ class medico(imdb):
     path = os.path.join(
       self._devkit_path,
       'results',
-      'VOC' + self._year,
+      'Medico' + self._year,
       'Main',
       filename)
     return path
@@ -211,10 +214,12 @@ class medico(imdb):
       'VOC' + self._year,
       'Annotations',
       '{:s}.xml')
+    
+    #<<<<<<<<<<< edit here
     imagesetfile = os.path.join(
       self._devkit_path,
-      'VOC' + self._year,
-      'ImageSets',
+    #   'VOC' + self._year,
+    #   'ImageSets',
       'Main',
       self._image_set + '.txt')
     cachedir = os.path.join(self._devkit_path, 'annotations_cache')
