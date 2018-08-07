@@ -19,7 +19,7 @@ import utils.cython_bbox
 import pickle
 import subprocess
 import uuid
-from .voc_eval import voc_eval
+from .medico_eval import medico_eval
 from model.config import cfg
 
 
@@ -137,7 +137,7 @@ class medico(imdb):
 
   def _load_medico_annotation(self, index):
     """
-    Load image and bounding boxes info from XML file in the PASCAL VOC
+    Load image and bounding boxes info from TXT file in the PASCAL VOC
     format.
     """
     filename = os.path.join(self._data_path, 'meta', index.zfill(5) + '.txt')
@@ -156,17 +156,16 @@ class medico(imdb):
     for i,line in enumerate(lines):
         info = line.split(' ') 
         # Make pixel indexes 0-based
-        x1 = float(info[0])
-        y1 = float(info[1])
-        x2 = float(info[2])
-        y2 = float(info[3])
-        lb = info[4]
+        x1 = float(info[0]) - 1
+        y1 = float(info[1]) - 1
+        x2 = float(info[2]) - 1
+        y2 = float(info[3]) - 1
+        lb = info[4].strip()
         cls = self._class_to_ind[lb]
         boxes[i, :] = [x1, y1, x2, y2]
         gt_classes[i] = cls 
         overlaps[i, cls] = 1.0
         seg_areas[i] = (x2 - x1 + 1) * (y2 - y1 + 1)
-
     overlaps = scipy.sparse.csr_matrix(overlaps)
 
     return {'boxes': boxes,
@@ -212,31 +211,33 @@ class medico(imdb):
   def _do_python_eval(self, output_dir='output'):
     annopath = os.path.join(
       self._devkit_path,
-      'VOC' + self._year,
-      'Annotations',
-      '{:s}.xml')
+      'medico_' + self._year,
+      'meta','{:s}.txt')
     
+    print('annopath = '+ annopath)
     #<<<<<<<<<<< edit here
     imagesetfile = os.path.join(
       self._devkit_path,
-    #   'VOC' + self._year,
+      'medico_' + self._year,
     #   'ImageSets',
       'Main',
       self._image_set + '.txt')
+    # print('imagesetfile = '+ imagesetfile)
     cachedir = os.path.join(self._devkit_path, 'annotations_cache')
+    # print('cachedir = '+ cachedir )
+    # print('outputdir = '+ output_dir)
     aps = []
     # The PASCAL VOC metric changed in 2010
-    use_07_metric = True if int(self._year) < 2010 else False
-    print('VOC07 metric? ' + ('Yes' if use_07_metric else 'No'))
     if not os.path.isdir(output_dir):
       os.mkdir(output_dir)
     for i, cls in enumerate(self._classes):
       if cls == '__background__':
         continue
       filename = self._get_voc_results_file_template().format(cls)
-      rec, prec, ap = voc_eval(
+      # print('file-name = ' + filename)
+      rec, prec, ap = medico_eval(
         filename, annopath, imagesetfile, cls, cachedir, ovthresh=0.5,
-        use_07_metric=use_07_metric, use_diff=self.config['use_diff'])
+        use_07_metric=False, use_diff=self.config['use_diff'])
       aps += [ap]
       print(('AP for {} = {:.4f}'.format(cls, ap)))
       with open(os.path.join(output_dir, cls + '_pr.pkl'), 'wb') as f:
@@ -256,26 +257,26 @@ class medico(imdb):
     print('-- Thanks, The Management')
     print('--------------------------------------------------------------')
 
-  def _do_matlab_eval(self, output_dir='output'):
-    print('-----------------------------------------------------')
-    print('Computing results with the official MATLAB eval code.')
-    print('-----------------------------------------------------')
-    path = os.path.join(cfg.ROOT_DIR, 'lib', 'datasets',
-                        'VOCdevkit-matlab-wrapper')
-    cmd = 'cd {} && '.format(path)
-    cmd += '{:s} -nodisplay -nodesktop '.format(cfg.MATLAB)
-    cmd += '-r "dbstop if error; '
-    cmd += 'voc_eval(\'{:s}\',\'{:s}\',\'{:s}\',\'{:s}\'); quit;"' \
-      .format(self._devkit_path, self._get_comp_id(),
-              self._image_set, output_dir)
-    print(('Running:\n{}'.format(cmd)))
-    status = subprocess.call(cmd, shell=True)
+  # def _do_matlab_eval(self, output_dir='output'):
+  #   print('-----------------------------------------------------')
+  #   print('Computing results with the official MATLAB eval code.')
+  #   print('-----------------------------------------------------')
+  #   path = os.path.join(cfg.ROOT_DIR, 'lib', 'datasets',
+  #                       'VOCdevkit-matlab-wrapper')
+  #   cmd = 'cd {} && '.format(path)
+  #   cmd += '{:s} -nodisplay -nodesktop '.format(cfg.MATLAB)
+  #   cmd += '-r "dbstop if error; '
+  #   cmd += 'medico_eval(\'{:s}\',\'{:s}\',\'{:s}\',\'{:s}\'); quit;"' \
+  #     .format(self._devkit_path, self._get_comp_id(),
+  #             self._image_set, output_dir)
+  #   print(('Running:\n{}'.format(cmd)))
+  #   status = subprocess.call(cmd, shell=True)
 
   def evaluate_detections(self, all_boxes, output_dir):
     self._write_voc_results_file(all_boxes)
     self._do_python_eval(output_dir)
-    if self.config['matlab_eval']:
-      self._do_matlab_eval(output_dir)
+    # if self.config['matlab_eval']:
+    #   self._do_matlab_eval(output_dir)
     if self.config['cleanup']:
       for cls in self._classes:
         if cls == '__background__':

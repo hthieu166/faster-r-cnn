@@ -38,6 +38,7 @@ import glob
 import os
 
 OUTPUT_DIR = 'demo_result/'
+INPUT_DIR = 'demo/medico_demo/'
 # CLASSES = ('__background__',
 #            'aeroplane', 'bicycle', 'bird', 'boat',
 #            'bottle', 'bus', 'car', 'cat', 'chair',
@@ -52,19 +53,18 @@ NETS = {'vgg16': ('vgg16_faster_rcnn_iter_70000.ckpt',),'res101': ('res101_faste
 # NETS = {'vgg16': ('vgg16_faster_rcnn_iter_70000.ckpt',),'res101': ('res101_faster_rcnn_iter_110000.ckpt','res101_faster_rcnn_iter_5000,ckpt')}
 DATASETS= {'pascal_voc': ('voc_2007_trainval',),'pascal_voc_0712': ('voc_2007_trainval+voc_2012_trainval',),'medico_2018':('medico_2018_trainval',)}
 
-def vis_detections(im, class_name, dets, thresh=0.5):
+def vis_detections(ax, class_name, dets, annot_file, thresh=0.5):
     """Draw detected bounding boxes."""
     inds = np.where(dets[:, -1] >= thresh)[0]
     if len(inds) == 0:
         return
 
-    im = im[:, :, (2, 1, 0)]
-    fig, ax = plt.subplots(figsize=(12, 12))
-    ax.imshow(im, aspect='equal')
+    
     for i in inds:
         bbox = dets[i, :4]
         score = dets[i, -1]
-
+        # print(class_name+' '+str(score)+' '+str(bbox[0])+' '+str(bbox[2])+' '+str(bbox[2])+' '+str(bbox[3])+'\n')
+        annot_file.write(class_name+' '+str(score)+' '+str(bbox[0])+' '+str(bbox[1])+' '+str(bbox[2])+' '+str(bbox[3])+'\n')
         ax.add_patch(
             plt.Rectangle((bbox[0], bbox[1]),
                           bbox[2] - bbox[0],
@@ -76,13 +76,11 @@ def vis_detections(im, class_name, dets, thresh=0.5):
                 bbox=dict(facecolor='blue', alpha=0.5),
                 fontsize=14, color='white')
 
-    ax.set_title(('{} detections with '
-                  'p({} | box) >= {:.1f}').format(class_name, class_name,
-                                                  thresh),
-                  fontsize=14)
-    plt.axis('off')
-    plt.tight_layout()
-    plt.draw()
+    # ax.set_title(('{} detections with '
+    #               'p({} | box) >= {:.1f}').format(class_name, class_name,
+    #                                               thresh),
+    #               fontsize=14)
+   
 
 def demo(sess, net, image_name):
     """Detect object classes in an image using pre-computed object proposals."""
@@ -102,7 +100,14 @@ def demo(sess, net, image_name):
     # Visualize detections for each class
     CONF_THRESH = 0.8
     NMS_THRESH = 0.3
-    print(CLASSES)
+
+    out_file = OUTPUT_DIR+'result_'+os.path.basename(im_name)
+    fo = open(out_file.replace('.jpg','.txt'),"w")
+    
+    im = im[:, :, (2, 1, 0)]
+    fig, ax = plt.subplots(figsize=(12, 12))
+    ax.imshow(im, aspect='equal')
+
     for cls_ind, cls in enumerate(CLASSES[1:]):
        
         cls_ind += 1 # because we skipped background
@@ -112,9 +117,13 @@ def demo(sess, net, image_name):
                           cls_scores[:, np.newaxis])).astype(np.float32)
         keep = nms(dets, NMS_THRESH)
         dets = dets[keep, :]
-        vis_detections(im, cls, dets, thresh=CONF_THRESH)
+        vis_detections(ax, cls, dets, fo, thresh=CONF_THRESH)
+
+    plt.axis('off')
+    plt.tight_layout()
+    plt.draw()
+    fo.close()
     
-    out_file = OUTPUT_DIR+'result_'+cls+'_'+os.path.basename(im_name)   
     print('Save result to: '+out_file)
     plt.savefig(out_file)
 
@@ -166,8 +175,8 @@ if __name__ == '__main__':
     
     if (not os.path.exists(OUTPUT_DIR)):
         os.makedirs(OUTPUT_DIR)
-    print(cfg.DATA_DIR+'/demo/medico_demo/*.jpg')
-    im_names = glob.glob(cfg.DATA_DIR+'/demo/medico_demo/*.jpg')
+    print(cfg.DATA_DIR+'/'+INPUT_DIR+'*.jpg')
+    im_names = glob.glob(cfg.DATA_DIR+'/'+INPUT_DIR+'*.jpg')
     print('Total demo imgs = '+str(len(im_names)))
     for im_name in im_names:
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')

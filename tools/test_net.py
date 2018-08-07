@@ -20,6 +20,8 @@ from nets.vgg16 import vgg16
 from nets.resnet_v1 import resnetv1
 from nets.mobilenet_v1 import mobilenetv1
 
+import shutil
+
 def parse_args():
   """
   Parse input arguments
@@ -116,6 +118,9 @@ if __name__ == '__main__':
     print(('Loading initial weights from {:s}').format(args.weight))
     sess.run(tf.global_variables_initializer())
     print('Loaded.')
+  
+  #CREATE RESULT FILE
+  shutil.rmtree(cfg.TEST_RESULT_DIR, ignore_errors=True)
 
   test_net(sess, net, imdb, filename, max_per_image=args.max_per_image)
 
