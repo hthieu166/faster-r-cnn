@@ -34,7 +34,7 @@ class medico(imdb):
     self._devkit_path = self._get_default_path()
     self._data_path = os.path.join(self._devkit_path, 'medico_' + self._year)
     self._classes = ('__background__',  # always index 0
-                     'polyp','dyed-lifted-polyp','dyed-resection-margin')
+                     'polyp','dyed-lifted-polyp','dyed-resection-margin','normal-z-line')
     self._class_to_ind = dict(list(zip(self.classes, list(range(self.num_classes)))))
     self._image_ext = '.jpg'
     self._image_index = self._load_image_set_index()
@@ -156,10 +156,10 @@ class medico(imdb):
     for i,line in enumerate(lines):
         info = line.split(' ') 
         # Make pixel indexes 0-based
-        x1 = float(info[0]) - 1
-        y1 = float(info[1]) - 1
-        x2 = float(info[2]) - 1
-        y2 = float(info[3]) - 1
+        x1 = max(float(info[0]) - 1,0)
+        y1 = max(float(info[1]) - 1,0)
+        x2 = max(float(info[2]) - 1,0)
+        y2 = max(float(info[3]) - 1,0)
         lb = info[4].strip()
         cls = self._class_to_ind[lb]
         boxes[i, :] = [x1, y1, x2, y2]

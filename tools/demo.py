@@ -37,8 +37,7 @@ from nets.resnet_v1 import resnetv1
 import glob
 import os
 
-OUTPUT_DIR = 'demo_result/'
-INPUT_DIR = 'demo/medico_demo/'
+SAVE_FIG = False
 # CLASSES = ('__background__',
 #            'aeroplane', 'bicycle', 'bird', 'boat',
 #            'bottle', 'bus', 'car', 'cat', 'chair',
@@ -47,7 +46,7 @@ INPUT_DIR = 'demo/medico_demo/'
 #            'sheep', 'sofa', 'train', 'tvmonitor')
 
 CLASSES = ('__background__',  # always index 0
-        'polyp','dyed-lifted-polyp','dyed-resection-margin')
+        'polyp','dyed-lifted-polyp','dyed-resection-margin', 'normal-z-line')
 
 NETS = {'vgg16': ('vgg16_faster_rcnn_iter_70000.ckpt',),'res101': ('res101_faster_rcnn_iter_5000.ckpt',)}
 # NETS = {'vgg16': ('vgg16_faster_rcnn_iter_70000.ckpt',),'res101': ('res101_faster_rcnn_iter_110000.ckpt','res101_faster_rcnn_iter_5000,ckpt')}
@@ -65,6 +64,8 @@ def vis_detections(ax, class_name, dets, annot_file, thresh=0.5):
         score = dets[i, -1]
         # print(class_name+' '+str(score)+' '+str(bbox[0])+' '+str(bbox[2])+' '+str(bbox[2])+' '+str(bbox[3])+'\n')
         annot_file.write(class_name+' '+str(score)+' '+str(bbox[0])+' '+str(bbox[1])+' '+str(bbox[2])+' '+str(bbox[3])+'\n')
+        if not SAVE_FIG:
+            continue
         ax.add_patch(
             plt.Rectangle((bbox[0], bbox[1]),
                           bbox[2] - bbox[0],
@@ -82,7 +83,7 @@ def vis_detections(ax, class_name, dets, annot_file, thresh=0.5):
     #               fontsize=14)
    
 
-def demo(sess, net, image_name):
+def demo(sess, net, image_name, CONF_THRESH):
     """Detect object classes in an image using pre-computed object proposals."""
 
     # Load the demo image
@@ -95,18 +96,19 @@ def demo(sess, net, image_name):
     timer.tic()
     scores, boxes = im_detect(sess, net, im)
     timer.toc()
-    print('Detection took {:.3f}s for {:d} object proposals'.format(timer.total_time, boxes.shape[0]))
+    #print('Detection took {:.3f}s for {:d} object proposals'.format(timer.total_time, boxes.shape[0]))
 
     # Visualize detections for each class
-    CONF_THRESH = 0.8
     NMS_THRESH = 0.3
-
+ 
     out_file = OUTPUT_DIR+'result_'+os.path.basename(im_name)
     fo = open(out_file.replace('.jpg','.txt'),"w")
     
     im = im[:, :, (2, 1, 0)]
-    fig, ax = plt.subplots(figsize=(12, 12))
-    ax.imshow(im, aspect='equal')
+    ax = None
+    if SAVE_FIG:
+        fig, ax = plt.subplots(figsize=(12, 12))
+        ax.imshow(im, aspect='equal')
 
     for cls_ind, cls in enumerate(CLASSES[1:]):
        
@@ -119,13 +121,15 @@ def demo(sess, net, image_name):
         dets = dets[keep, :]
         vis_detections(ax, cls, dets, fo, thresh=CONF_THRESH)
 
-    plt.axis('off')
-    plt.tight_layout()
-    plt.draw()
-    fo.close()
-    
-    print('Save result to: '+out_file)
-    plt.savefig(out_file)
+    if SAVE_FIG:
+        plt.axis('off')
+        plt.tight_layout()
+        plt.draw()
+        print('Save img result to: '+out_file)
+        plt.savefig(out_file)
+        fo.close()
+        plt.close('all')
+        
 
 def parse_args():
     """Parse input arguments."""
@@ -134,6 +138,9 @@ def parse_args():
                         choices=NETS.keys(), default='res101')
     parser.add_argument('--dataset', dest='dataset', help='Trained dataset [pascal_voc pascal_voc_0712]',
                         choices=DATASETS.keys(), default='medico_2018')
+    parser.add_argument('--inpdir', dest='inpdir')
+    parser.add_argument('--conf', dest='conf', default='0.9')
+    parser.add_argument('--savefig', dest='savefig', default = True)
     args = parser.parse_args()
 
     return args
@@ -141,7 +148,14 @@ def parse_args():
 if __name__ == '__main__':
     cfg.TEST.HAS_RPN = True  # Use RPN for proposals
     args = parse_args()
+    #INPUT AND OUTPUT DIRECTORY
+    INPUT_DIR = args.inpdir
+    OUTPUT_DIR = 'demo_result/' + os.path.basename(os.path.dirname(args.inpdir))+'_'+str(args.conf)+'/'
+    print('OUTPUT DIR = '+ OUTPUT_DIR)
 
+    #CONFIDENT THRESH
+    CONF_THRESH = float(args.conf)
+    SAVE_FIG = bool(args.savefig)
     # model path
     demonet = args.demo_net
     dataset = args.dataset
@@ -166,7 +180,7 @@ if __name__ == '__main__':
         net = resnetv1(num_layers=101)
     else:
         raise NotImplementedError
-    net.create_architecture("TEST", 4,
+    net.create_architecture("TEST", 5,
                           tag='default', anchor_scales=[4, 8, 16, 32])
     saver = tf.train.Saver()
     saver.restore(sess, tfmodel)
@@ -175,12 +189,16 @@ if __name__ == '__main__':
     
     if (not os.path.exists(OUTPUT_DIR)):
         os.makedirs(OUTPUT_DIR)
-    print(cfg.DATA_DIR+'/'+INPUT_DIR+'*.jpg')
-    im_names = glob.glob(cfg.DATA_DIR+'/'+INPUT_DIR+'*.jpg')
+    print(INPUT_DIR+'*.jpg')
+    im_names = glob.glob(INPUT_DIR+'*.jpg')
     print('Total demo imgs = '+str(len(im_names)))
-    for im_name in im_names:
-        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-        print('Demo for data/demo/{}'.format(im_name))
-        demo(sess, net, im_name)
+
+    total = len(im_names)
+    for i,im_name in enumerate(im_names):
+        # print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+        # print('Demo for data/demo/{}'.format(im_name))
+        if (i%10 == 0):
+            print(str(i)+'/'+str(total))
+        demo(sess, net, im_name,CONF_THRESH)
     # plt.show()
 
