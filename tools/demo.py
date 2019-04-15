@@ -46,9 +46,9 @@ SAVE_FIG = False
 #            'sheep', 'sofa', 'train', 'tvmonitor')
 
 CLASSES = ('__background__',  # always index 0
-        'polyp','dyed-lifted-polyp','dyed-resection-margin', 'normal-z-line')
+        'Guitar', 'Ice_cream', 'French_fries', 'Bread')
 
-NETS = {'vgg16': ('vgg16_faster_rcnn_iter_70000.ckpt',),'res101': ('res101_faster_rcnn_iter_5000.ckpt',)}
+NETS = {'vgg16': ('vgg16_faster_rcnn_iter_70000.ckpt',),'res101': ('res101_faster_rcnn_iter_35000.ckpt',)}
 # NETS = {'vgg16': ('vgg16_faster_rcnn_iter_70000.ckpt',),'res101': ('res101_faster_rcnn_iter_110000.ckpt','res101_faster_rcnn_iter_5000,ckpt')}
 DATASETS= {'pascal_voc': ('voc_2007_trainval',),'pascal_voc_0712': ('voc_2007_trainval+voc_2012_trainval',),'medico_2018':('medico_2018_trainval',)}
 
@@ -77,18 +77,11 @@ def vis_detections(ax, class_name, dets, annot_file, thresh=0.5):
                 bbox=dict(facecolor='blue', alpha=0.5),
                 fontsize=14, color='white')
 
-    # ax.set_title(('{} detections with '
-    #               'p({} | box) >= {:.1f}').format(class_name, class_name,
-    #                                               thresh),
-    #               fontsize=14)
-   
-
-def demo(sess, net, image_name, CONF_THRESH):
+def demo(sess, net, image_name, CONF_THRESH,INPUT_DIR, OUTPUT_DIR):
     """Detect object classes in an image using pre-computed object proposals."""
 
     # Load the demo image
-    im_file = image_name
-    # im_file = os.path.join(cfg.DATA_DIR, 'demo', image_name)
+    im_file = image_name    
     im = cv2.imread(im_file)
 
     # Detect all object classes and regress object bounds
@@ -101,7 +94,11 @@ def demo(sess, net, image_name, CONF_THRESH):
     # Visualize detections for each class
     NMS_THRESH = 0.3
  
-    out_file = OUTPUT_DIR+'result_'+os.path.basename(im_name)
+    out_file = os.path.join(OUTPUT_DIR,im_name.replace(INPUT_DIR,''))
+    out_dir  = os.path.dirname(out_file)
+    if (not os.path.exists(out_dir)):
+        os.makedirs(out_dir)
+    
     fo = open(out_file.replace('.jpg','.txt'),"w")
     
     im = im[:, :, (2, 1, 0)]
@@ -139,8 +136,13 @@ def parse_args():
     parser.add_argument('--dataset', dest='dataset', help='Trained dataset [pascal_voc pascal_voc_0712]',
                         choices=DATASETS.keys(), default='medico_2018')
     parser.add_argument('--inpdir', dest='inpdir')
-    parser.add_argument('--conf', dest='conf', default='0.9')
+    parser.add_argument('--outdir', default = 'demo_result/')
+    parser.add_argument('--conf', dest='conf', default='0.5')
     parser.add_argument('--savefig', dest='savefig', default = True)
+    parser.add_argument('--gpu_id', default = "0")
+    parser.add_argument('--classes', default = None)
+    parser.add_argument('--checkpoint', default = None)
+    parser.add_argument('--pattern', default= "*.jpg")
     args = parser.parse_args()
 
     return args
@@ -148,21 +150,36 @@ def parse_args():
 if __name__ == '__main__':
     cfg.TEST.HAS_RPN = True  # Use RPN for proposals
     args = parse_args()
+    #GPU CONFIG
+    os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"]= str(args.gpu_id)
+    
     #INPUT AND OUTPUT DIRECTORY
     INPUT_DIR = args.inpdir
-    OUTPUT_DIR = 'demo_result/' + os.path.basename(os.path.dirname(args.inpdir))+'_'+str(args.conf)+'/'
-    print('OUTPUT DIR = '+ OUTPUT_DIR)
+    OUTPUT_DIR = os.path.join(args.outdir, os.path.basename(os.path.dirname(args.inpdir))+'_'+str(args.conf)+'/')
+    
+    
 
     #CONFIDENT THRESH
     CONF_THRESH = float(args.conf)
     SAVE_FIG = bool(args.savefig)
+    
+    #CLASSES
+    if (args.classes != None):  
+        with open(args.classes) as fi:
+            all_classes = [x.strip() for x in fi.readlines()]
+        CLASSES = ('__background__',) + tuple(all_classes)
+    
+    print(">>> NUM_CLASSES: \t",len(CLASSES))
+    
     # model path
     demonet = args.demo_net
-    dataset = args.dataset
-    tfmodel = os.path.join('output', demonet, DATASETS[dataset][0], 'default',
-                              NETS[demonet][0])
-
-
+    if (args.checkpoint !=None):
+        tfmodel = args.checkpoint
+    else:
+        dataset = args.dataset
+        tfmodel = os.path.join('output', demonet, DATASETS[dataset][0], 'default', NETS[demonet][0])
+        
     if not os.path.isfile(tfmodel + '.meta'):
         raise IOError(('{:s} not found.\nDid you download the proper networks from '
                        'our server and place them properly?').format(tfmodel + '.meta'))
@@ -180,25 +197,25 @@ if __name__ == '__main__':
         net = resnetv1(num_layers=101)
     else:
         raise NotImplementedError
-    net.create_architecture("TEST", 5,
+    
+    net.create_architecture("TEST", len(CLASSES),
                           tag='default', anchor_scales=[4, 8, 16, 32])
     saver = tf.train.Saver()
     saver.restore(sess, tfmodel)
 
-    print('Loaded network {:s}'.format(tfmodel))
+    print('>>> LOADES NETWORK: \t{:s}'.format(tfmodel))
+    print('>>> OUTPUT DIR: \t', OUTPUT_DIR)
+        
+    find_imgs = os.path.join(INPUT_DIR, args.pattern)
+    print('>>> INPUT DIR: \t', find_imgs)
+    im_names = glob.glob(find_imgs)
+#     im_names += glob.glob(INPUT_DIR+'*.JPG')
     
-    if (not os.path.exists(OUTPUT_DIR)):
-        os.makedirs(OUTPUT_DIR)
-    print(INPUT_DIR+'*.jpg')
-    im_names = glob.glob(INPUT_DIR+'*.jpg')
-    print('Total demo imgs = '+str(len(im_names)))
+    print('>>> COUNT_IMGS: \t= '+str(len(im_names)))
 
     total = len(im_names)
     for i,im_name in enumerate(im_names):
-        # print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-        # print('Demo for data/demo/{}'.format(im_name))
         if (i%10 == 0):
             print(str(i)+'/'+str(total))
-        demo(sess, net, im_name,CONF_THRESH)
-    # plt.show()
+        demo(sess, net, im_name, CONF_THRESH, INPUT_DIR, OUTPUT_DIR)
 

@@ -32,9 +32,9 @@ class medico(imdb):
     self._year = year
     self._image_set = image_set
     self._devkit_path = self._get_default_path()
-    self._data_path = os.path.join(self._devkit_path, 'medico_' + self._year)
+    self._data_path = self._devkit_path #os.path.join(self._devkit_path, 'medico_' + self._year)
     self._classes = ('__background__',  # always index 0
-                     'polyp','dyed-lifted-polyp','dyed-resection-margin','normal-z-line')
+                     'Guitar', 'Ice_cream', 'French_fries', 'Bread')
     self._class_to_ind = dict(list(zip(self.classes, list(range(self.num_classes)))))
     self._image_ext = '.jpg'
     self._image_index = self._load_image_set_index()
@@ -90,7 +90,7 @@ class medico(imdb):
     """
     Return the default path where MEDICO is expected to be installed.
     """
-    return os.path.join(cfg.DATA_DIR, 'MedicoDataset')
+    return os.path.join(cfg.DATA_DIR, 'MyDataset')
 
   def gt_roidb(self):
     """
@@ -151,16 +151,16 @@ class medico(imdb):
     overlaps = np.zeros((num_objs, self.num_classes), dtype=np.float32)
     # "Seg" area for pascal is just the box area
     seg_areas = np.zeros((num_objs), dtype=np.float32)
-
+    print (filename)
     # Load object bounding boxes into a data frame.
     for i,line in enumerate(lines):
         info = line.split(' ') 
         # Make pixel indexes 0-based
-        x1 = max(float(info[0]) - 1,0)
-        y1 = max(float(info[1]) - 1,0)
-        x2 = max(float(info[2]) - 1,0)
-        y2 = max(float(info[3]) - 1,0)
-        lb = info[4].strip()
+        x1 = max(float(info[1]) - 1,0)
+        y1 = max(float(info[2]) - 1,0)
+        x2 = max(float(info[3]) - 1,0)
+        y2 = max(float(info[4]) - 1,0)
+        lb = info[0].strip()
         cls = self._class_to_ind[lb]
         boxes[i, :] = [x1, y1, x2, y2]
         gt_classes[i] = cls 

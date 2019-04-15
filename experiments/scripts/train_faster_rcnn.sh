@@ -43,7 +43,7 @@ case ${DATASET} in
     TRAIN_IMDB="medico_2018_trainval"
     TEST_IMDB="medico_2018_test"
     STEPSIZE="[2500]"
-    ITERS=80000
+    ITERS=70000
     ANCHORS="[4,8,16,32]"
     RATIOS="[0.5,1,2]"
     ;;
